@@ -1,21 +1,31 @@
 import { render, screen } from "@testing-library/react";
 import ProductDetail from "../../src/components/ProductDetail";
-import { products } from "../mocks/data";
 import { http, HttpResponse } from "msw";
 import { server } from "../mocks/server";
+import { db } from "../mocks/db";
 
 describe("ProductDetail", () => {
-  it("should return product name and price if product is found", async () => {
-    render(<ProductDetail productId={1} />);
+  let productId: number = 0;
 
-    const product = await screen.findByText(new RegExp(products[0].name));
-    const price = await screen.findByText(new RegExp(products[0].price.toString()));
-
-    expect(product).toBeInTheDocument();
-    expect(price).toBeInTheDocument();
+  beforeAll(() => {
+    const product = db.product.create();
+    productId = product.id;
   });
 
-  it("should return product not found and price if product is not found", async () => {
+  afterAll(() => {
+    db.product.delete({ where: { id: { equals: productId } } });
+  });
+
+  it("should render product details", async () => {
+    const product = db.product.findFirst({ where: { id: { equals: productId } } })!;
+
+    render(<ProductDetail productId={productId} />);
+
+    expect(await screen.findByText(new RegExp(product.name))).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(product.price.toString()))).toBeInTheDocument();
+  });
+
+  it("should render an error message if product is not found", async () => {
     server.use(http.get("/products/1", () => HttpResponse.json(null)));
 
     render(<ProductDetail productId={1} />);
